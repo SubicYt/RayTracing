@@ -18,35 +18,34 @@ Steps go as follows:
 		* Write pixel data as RGB values
 		* Close file
 */
-
 void render() {
 	const int height = 1080; //my native screen and image resolution
 	const int width = 1920;
 	std::vector<Vec3f> frameBuffer(width * height); // declare 1d framebuffer vector (hole RGB respective to slots) 
 
 	// Initialize the framebuffer with a gradient based on pixel coordinates
-	for (size_t j = 0; j < height; j++) {
-		for (size_t i = 0; i < width; i++){
-			
+	for (size_t i = 0; i < width; i++) {
+		for (size_t j = 0; j < height; j++) {
 			frameBuffer[j * width + i] = Vec3f(
-			j / float(height), //Red Channel
-			i / float(width), // Green channel
-			0 // Blue channel set to 0 for simplicity's sake
+				i / float(width), // Red Channel
+				j / float(height), // Green Channel
+				0 // Blue channel 0 for simplicity sake. 
 			);
 		}
 	}
-
-	std::ofstream outFrameBuffer("./out.ppm", std::ios::binary);
-	outFrameBuffer << "P6\n" // P6 format for binary RGB 
-		<< width << " " << height << "\n" << "255\n"; // Max color value
-
+	// P6 format for binary RGB 
+	// 225 is written to ensure Max color value
 	//write pixel data
-	for (size_t i = 0; i < width * height; ++i) {
-		for (size_t j = 0; j < 3; j++) {
-			outFrameBuffer << (char)(255 * frameBuffer[i][j]); // Scale to 0-255 range
-		}
-	}
+	std::ofstream ImageOut; 
+	ImageOut.open("./gradient.ppm", std::ios::binary);
 
+	//P6 indicates that image data is stored in binary format, raw binary rep. of pixel colors. 
+	ImageOut << "P6\n" << width << " " << height << "\n255\n";
+	for (size_t i = 0; i < (height * width); ++i) {
+		for (size_t j = 0; j < 3; j++) {
+			ImageOut << (char)(255 * frameBuffer[i][j]); // Multiply by 255 to get an 8 bit value. Cast to char. 
+	}
+}
 	outFrameBuffer.close(); // Close the file after writing
 }
 
