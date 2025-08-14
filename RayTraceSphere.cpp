@@ -4,13 +4,13 @@
 #include <fstream>
 #include <cmath>
 
-
 struct Sphere {
 
 	Vec3f center;
 	float radius;
 
-	Sphere(const Vec3f& c, const float& rad) { //Pass These as a reference.
+	Sphere(const Vec3f& c, const float& rad) { 
+		//Pass These as a reference.
 		//The sphere object is made up of 4 number components
 		//There are 3 numbers stored within a 3d vector to define the "center"
 		//one scalar value to define the radius 
@@ -18,58 +18,59 @@ struct Sphere {
 		radius = rad;
 	}
 
-	bool ray_intersections(const Vec3f& origin, const Vec3f& ray_direction, float& t_hit) const {
-		Vec3f VPC = center - origin;
-
-		float projection_len = VPC * ray_direction;
-		float center_to_ray = VPC * VPC - projection_len * projection_len;
+	bool ray_intersections(const Vec3f& origin, const Vec3f& ray_direction, float& near_hit) const {
+		Vec3f Origin_to_center = center - origin; // origin respective of ray.
+		float projection_point = ray_direction * Origin_to_center;
+		float center_to_ray = Origin_to_center * Origin_to_center - projection_point * projection_point; // clostest point from circle center to ray. 
 
 		if (center_to_ray > radius * radius) {
-			//there is no intersection
-			return false;
+			return false; // No intersection
 		}
+		//distance from projection point to intersection is needed. 
+		//Look for two points of intersection, near and far. 
+		float distance = sqrt(radius * radius - center_to_ray); // Note that center_to_ray is already squared value
 
-		//distance from projection point to intersection point along the ray
-		float dist = sqrt(radius * radius - center_to_ray);
+		//the two points of intersection are trivial, if explanation is needed check README.
+		near_hit = projection_point - distance;
+		float far_hit = projection_point + distance;
 
-		//account for two intersection points along ray
-		float near_point = projection_len - dist;
-		float far_point = projection_len + dist;
-
-		t_hit = near_point;
-
-		if (t_hit < 0) {
-			t_hit = far_point;
+		if (near_hit < 0) {
+			near_hit = far_hit; //Only one point of contact with circle
 		}
-		if (t_hit < 0) {
-			return false;
+		if (near_hit < 0) {
+			return false; //If still zero, circle is completely behind the ray
 		}
 		return true;
 	}
 };
 
-
-	Vec3f cast_rays(const Vec3f& origin, const Vec3f ray_direction, const Sphere& sphere) {
-		float sphere_dist = std::numeric_limits<float>::max();
-		if (!sphere.ray_intersections(origin, ray_direction, sphere_dist)) {
-			return Vec3f(0.2, 0.7, 0.8);// background color
+/*
+Within the cast rays function it checks for intersections. where there is an intersection we use Color 1, if not, use color 2.
+*/
+	Vec3f cast_rays(const Vec3f& origin, const Vec3f& ray_direction, const Sphere & sphere) {
+		float distance = std::numeric_limits<float>::max();
+		if (!sphere.ray_intersections(origin, ray_direction, distance)) {
+			return Vec3f(0.3, 0.3, 0.7); // background color due to !intersections
 		}
-		return Vec3f(0.2, 0.2, 0.3); //sphere color
-	}
+			return Vec3f(0.4, 0.6, 0.7); // circles
+	};
 
-
-	void render(const Sphere & sphere) {
+	void render(const Sphere& sphere) {
 		const int height = 1080; //my native screen and image resolution
 		const int width = 1920;
 		const int fov = 3.14159265358979323846 / 2.;
 		
-		std::vector<Vec3f> frameBuffer(width * height); // declare 1d framebuffer vector (hole RGB respective to slots) 
+		std::vector<Vec3f> frameBuffer(width * height); // declare 1d framebuffer vector (holds RGB values respective to slots) 
 
-		// Initialize the framebuffer with a gradient based on pixel coordinates
 		for (size_t j = 0; j < height; j++) {
 			for (size_t i = 0; i < width; i++) {
-				float x = (2 * (i + 0.5) / (float)width - 1) * tan(fov / 2.) * width / (float)height;
-				float y = -(2 * (j + 0.5) / (float)height - 1) * tan(fov / 2.);
+				float x = (2 * (i + 0.5) / (float)width - 1)
+					* tan(fov / 2.)
+					* width / (float)height;
+				
+				float y = -(2 * (j + 0.5) / (float)height - 1) 
+					* tan(fov / 2.);
+
 				Vec3f dir = Vec3f(x, y, -1).normalize();
 				frameBuffer[i + j * width] = cast_rays(Vec3f(0, 0, 0), dir, sphere);
 			}
