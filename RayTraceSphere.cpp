@@ -10,17 +10,15 @@ struct Sphere {
 	float radius;
 
 	Sphere(const Vec3f& c, const float& rad) { 
-		//Pass These as a reference.
-		//The sphere object is made up of 4 number components
-		//There are 3 numbers stored within a 3d vector to define the "center"
+		//Center is vec3f used to describe center of circle. 
 		//one scalar value to define the radius 
 		center = c;
 		radius = rad;
 	}
 
-	bool ray_intersections(const Vec3f& origin, const Vec3f& ray_direction, float& near_hit) const {
+	bool ray_intersections(const Vec3f& origin, const Vec3f& ray_direction, float& distance) const {
 		Vec3f Origin_to_center = center - origin; // origin respective of ray.
-		float projection_point = ray_direction * Origin_to_center;
+		float projection_point = ray_direction * Origin_to_center; // orientation of the ray multiplied by vector to center of ray. 
 		float center_to_ray = Origin_to_center * Origin_to_center - projection_point * projection_point; // clostest point from circle center to ray. 
 
 		if (center_to_ray > radius * radius) {
@@ -31,13 +29,13 @@ struct Sphere {
 		float distance = sqrt(radius * radius - center_to_ray); // Note that center_to_ray is already squared value
 
 		//the two points of intersection are trivial, if explanation is needed check README.
-		near_hit = projection_point - distance;
-		float far_hit = projection_point + distance;
+		distance = projection_point - distance;
+		float distance_far_intersection = projection_point + distance;
 
-		if (near_hit < 0) {
-			near_hit = far_hit; //Only one point of contact with circle
+		if (distance < 0) {
+			distance = distance_far_intersection; //Only one point of contact with circle
 		}
-		if (near_hit < 0) {
+		if (distance < 0) {
 			return false; //If still zero, circle is completely behind the ray
 		}
 		return true;
@@ -64,18 +62,25 @@ Within the cast rays function it checks for intersections. where there is an int
 
 		for (size_t j = 0; j < height; j++) {
 			for (size_t i = 0; i < width; i++) {
-				float x = (2 * (i + 0.5) / (float)width - 1)
+				/*
+				*Variables x and y below build the ray_direction.
+				* For each pixel you build a ray_direction as such.
+				*/
+				
+				float x = ((2 * (i + 0.5) / (float)width) - 1)
 					* tan(fov / 2.)
 					* width / (float)height;
 				
 				float y = -(2 * (j + 0.5) / (float)height - 1) 
 					* tan(fov / 2.);
 
-				Vec3f dir = Vec3f(x, y, -1).normalize();
+				Vec3f dir = Vec3f(x, y, -1).normalize(); // .normalize()  Scales the vector to a lenth 1. 
+				// We scale to len. 1 because we are looking for the orientation of the vector only.
+				//The direction * distance is what gives us a ray used for computation within the ray_intersections function.
+
 				frameBuffer[i + j * width] = cast_rays(Vec3f(0, 0, 0), dir, sphere);
 			}
 		}
-
 		std::ofstream outFrameBuffer("./circle.ppm", std::ios::binary);
 		outFrameBuffer << "P6\n" // P6 format for binary RGB 
 			<< width << " " << height << "\n" << "255\n"; // Max color value
@@ -86,7 +91,6 @@ Within the cast rays function it checks for intersections. where there is an int
 				outFrameBuffer << (char)(255 * frameBuffer[i][j]); // Scale to 0-255 range
 			}
 		}
-
 		outFrameBuffer.close(); // Close the file after writing
 	}
 
