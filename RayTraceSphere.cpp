@@ -4,14 +4,22 @@
 #include <fstream>
 #include <cmath>
 
-struct light_source {
+struct Light {
 	float intensity; 
 	Vec3f position;
 	
-	light_source(const Vec3f& p, const float& i) {
+	Light(const Vec3f& p, const float& i) {
 		intensity = i;
 		position = p;
 	}
+/*
+check the angle between a normal vector in this point and the vector describing a direction of light. 
+The smaller the angle, the better the surface is illuminated. 
+the scalar product between two vectors a and b is 
+equal to product of norms of vectors times the cosine of the angle between the vectors: 
+a*b = |a| |b| cos(alpha(a,b)). 
+If we take vectors of unit length, the dot product will give us the intensity of surface illumination.
+*/
 };
 
 struct Object_Material {
@@ -68,40 +76,53 @@ struct Sphere {
 };
 
 bool Object_intersections(const Vec3f& origin, const Vec3f& ray_direction,
-	const std::vector<Sphere> spheres, Vec3f& hit, Vec3f& normal, Object_Material& material) {
-	
-	float sphere_distance = std::numeric_limits<float>::max(); // start with a distance of infinity.
-	
-	//Loop through each sphere in the spheres vector 
+	const std::vector<Sphere> spheres,
+	Vec3f& hit, Vec3f& normal, Object_Material& material) {
+
+	float sphere_distance = std::numeric_limits<float>::max();
+
+	//implementing each sphere within the sphere vector
 	for (size_t i = 0; i < spheres.size(); i++) {
-		float dist_i;
-		if (spheres[i].ray_intersections(origin, ray_direction, dist_i) && dist_i < sphere_distance) {
-			sphere_distance = dist_i; // update sphere_distance to current circle in vector. 
-			hit = origin + ray_direction * dist_i; // Vector to the 3d sphere itself.
-			normal = (hit - spheres[i].center).normalize(); // Point normal to the hit, scaled to 1. 
+		float distance_i = 0;
+		//check to see if there is an intersection occuring at the sphere
+		if (spheres[i].ray_intersections(origin, ray_direction, distance_i) && distance_i < sphere_distance) {
+			sphere_distance = distance_i;
+			//vector that hit the sphere. 
+			hit = ray_direction * distance_i + origin; 
+			normal = (hit - spheres[i].center).normalize();
 			material = spheres[i].material; 
 		}
 	}
-	return sphere_distance < 1000; 
-	//returns true if we actually hit anything.
+	return sphere_distance < 1000; // returns true if hit anything. 
 }
 	 
 /*
 Within the cast rays function it checks for intersections. where there is an intersection we use Color 1, if not, use color 2.
 */
-	Vec3f cast_rays(const Vec3f& origin, const Vec3f& ray_direction, const std::vector<Sphere> spheres) {
-		Vec3f Hit;
-		Vec3f Normal;
-		Object_Material material; 
+Vec3f cast_rays(const Vec3f& origin, const Vec3f& ray_direction,
+	const std::vector<Sphere> spheres,
+	const std::vector<Light>& lights) {
+	
+	Vec3f Hit; 
+	Vec3f Point_Normal;
+	Object_Material material; 
+	float diffusion_light_intensity = 0;
 
-		float distance = std::numeric_limits<float>::max();
-		if (!Object_intersections(origin, ray_direction, spheres, Hit, Normal, material)) {
-			return Vec3f(0.3, 0.3, 0.7);
-		}
-		return material.diffuse_color; 
-	};
+	if (!Object_intersections(origin, ray_direction, spheres, Hit, Point_Normal, material)) {
+		return Vec3f(0.1, 0.1, 0.4);
+	}
+	for (size_t i = 0; i < lights.size(); i++) {
+		Vec3f Light_direction = (lights[i].position - Hit).normalize(); // direction of the light points towards hit object
+		//light_direction scaled to 1
+		float intensity = std::max(0.f, Light_direction * Point_Normal); //clamp to zero. Ensure no char wrap around. 
+		//light intensity determined by the size of angle made by the light hitting the object to it's normal point. 
+		diffusion_light_intensity += lights[i].intensity * intensity; // Add to the diffusion instensity 
+	}
 
-	void render(const std::vector<Sphere> spheres) {
+	return material.diffuse_color * diffusion_light_intensity; //must take into account light
+}
+
+	void render(const std::vector<Sphere>& spheres, const std::vector<Light>& lights) {
 		const int height = 1080; //my native screen and image resolution
 		const int width = 1920;
 		const int fov = 3.14159265358979323846 / 2.;
@@ -126,10 +147,10 @@ Within the cast rays function it checks for intersections. where there is an int
 				// We scale to len. 1 because we are looking for the orientation of the vector only.
 				//The direction * distance is what gives us a ray used for computation within the ray_intersections function.
 
-				frameBuffer[i + j * width] = cast_rays(Vec3f(0, 0, 0), dir, spheres);
+				frameBuffer[i + j * width] = cast_rays(Vec3f(0, 0, 0), dir, spheres, lights);
 			}
 		}
-		std::ofstream outFrameBuffer("./multiple_objects.ppm", std::ios::binary);
+		std::ofstream outFrameBuffer("./ObjectsWithLight.ppm", std::ios::binary);
 		outFrameBuffer << "P6\n" // P6 format for binary RGB 
 			<< width << " " << height << "\n" << "255\n"; // Max color value
 
@@ -152,7 +173,11 @@ int main() {
 	spheres.push_back(Sphere(Vec3f(1.5, -0.5, -18), 3, apple));
 	spheres.push_back(Sphere(Vec3f(7, 5, -18), 4, ivory));
 
-	render(spheres);
+
+	std::vector<Light> lights;
+	lights.push_back(Light(Vec3f(-20, 30, 20), 1.5));
+
+	render(spheres, lights);
 
 	std::cout << "Spheres rendered successfully" << std::endl;
 	return 0;
