@@ -1,4 +1,5 @@
-        ------------------  A MINI 3D RENDER WITH RAY TRACING. ------------------
+PART 1: A MINI 3D RENDER WITH RAY TRACING! (an introduction blurb)
+-
 
 All math and logic will be uploaded shortly with screenshots of work and equations used.
 
@@ -10,6 +11,9 @@ To calculate sphere intersections refer to this -------> https://www.lighthouse3
 
 The Phong Reflection Model is responsible for specular light ---------> https://en.wikipedia.org/wiki/Phong_reflection_model
 __________________________________________________________________________________________________________________________________
+
+PART 2: RENDER GRADIENT - SAVE IMAGE TO DISK
+-
 Step 1.) Render and Write image to Disk using a "render()" function.
  - The logic is included in the description of Render.cpp, I will attach the "geometry.h" header file which was made by developer ssloy.
  - Geometry.h just allows you with a class of multidimensional vectors which allows for manipulation of said vectors.
