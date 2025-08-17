@@ -3,6 +3,8 @@
 All math and logic will be uploaded shortly with screenshots of work and equations used.
 
 (REVIEW THESE SOURCES PRIOR TO DIVING INTO CODE OR DOCUMENTATION)
+--Seriously though, this isn't very intuitive at all unless you are cracked out of your mind... you will be lost. Like me lol. 
+Just review it and work the stuff out as you go along, it doesn't take very long. 
 
 To calculate sphere intersections refer to this -------> https://www.lighthouse3d.com/tutorials/maths/ray-sphere-intersection/
 
