@@ -6,3 +6,5 @@ Step 1.) Render and Write image to Disk using a "render()" function.
 NOTE: I was confused about this but to make this clear, and clear for others reading... the pixels need to be taken from their (x,y) coordinates and put into a 1 dimension data structure in order to
 be properly read and represented by .PPM files. File formates like .PPM expect all pixels to be laid out in a single continuous block.
  * hence why the framebuffer declaration is made as such ---> std::vector<Vect3f> frameBuffer(width*height); //only 1 dimension. 
+
+More proper documentation coming soon...
