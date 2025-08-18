@@ -5,29 +5,29 @@
 #include <cmath>
 
 struct Light {
-	float intensity; 
+	float intensity;
 	Vec3f position;
-	
+
 	Light(const Vec3f& p, const float& i) {
 		intensity = i;
 		position = p;
 	}
-/*
-check the angle between a normal vector in this point and the vector describing a direction of light. 
-The smaller the angle, the better the surface is illuminated. 
-the scalar product between two vectors a and b is 
-equal to product of norms of vectors times the cosine of the angle between the vectors: 
-a*b = |a| |b| cos(alpha(a,b)). 
-If we take vectors of unit length, the dot product will give us the intensity of surface illumination.
-*/
+	/*
+	check the angle between a normal vector in this point and the vector describing a direction of light.
+	The smaller the angle, the better the surface is illuminated.
+	the scalar product between two vectors a and b is
+	equal to product of norms of vectors times the cosine of the angle between the vectors:
+	a*b = |a| |b| cos(alpha(a,b)).
+	If we take vectors of unit length, the dot product will give us the intensity of surface illumination.
+	*/
 };
 
 struct Object_Material {
 	Vec3f diffuse_color;
-	float shininess_exponent; 
+	float shininess_exponent;
 	Vec2f light_constants;
 
-	Object_Material(){
+	Object_Material() {
 		diffuse_color = Vec3f();
 		shininess_exponent = 1;
 		light_constants = Vec2f(1, 0);
@@ -47,7 +47,7 @@ struct Sphere {
 	float radius;
 	Object_Material material;
 
-	Sphere(const Vec3f& c, const float& rad, const Object_Material& m) { 
+	Sphere(const Vec3f& c, const float& rad, const Object_Material& m) {
 		//Center is vec3f used to describe center of circle. 
 		//one scalar value to define the radius 
 		center = c;
@@ -85,7 +85,7 @@ bool Object_intersections(const Vec3f& origin, const Vec3f& ray_direction,
 	const std::vector<Sphere> spheres,
 	Vec3f& hit, Vec3f& normal, Object_Material& material) {
 
-	float sphere_distance = std::numeric_limits<float>::max();
+	float sphere_distance = std::numeric_limits<float>::max(); // initialize to closest distance so far, infinity 
 
 	//implementing each sphere within the sphere vector
 	for (size_t i = 0; i < spheres.size(); i++) {
@@ -94,19 +94,72 @@ bool Object_intersections(const Vec3f& origin, const Vec3f& ray_direction,
 		if (spheres[i].ray_intersections(origin, ray_direction, distance_i) && distance_i < sphere_distance) {
 			sphere_distance = distance_i;
 			//vector that hit the sphere. 
-			hit = ray_direction * distance_i + origin; 
+			hit = ray_direction * distance_i + origin;
 			normal = (hit - spheres[i].center).normalize();
-			material = spheres[i].material; 
+			material = spheres[i].material;
 		}
 	}
-	return sphere_distance < 1000; // returns true if hit anything. 
+
+	float checkerboard_dist = std::numeric_limits<float>::max();
+	if (fabs(ray_direction.y) > 0)//Ensure ray is projecting in front of the camera. i think... comeback to laters. 
+	{
+		float distance_to_plane = -(origin.y + 5) / ray_direction.y; //set y plance to -5. 
+		Vec3f y_plane_hit = ray_direction * distance_to_plane + origin;
+
+		//check distance to see if its in front of camera(positive value) and set bounds on x,z-axis. 
+		//Also check to see if the checkerBoard is behind the spheres. 
+		if (distance_to_plane > 0 && abs(y_plane_hit.x)<10 && y_plane_hit.z < -10
+		&& y_plane_hit.z > -30 && distance_to_plane < sphere_distance){
+
+			sphere_distance = distance_to_plane;
+			hit = y_plane_hit;
+			normal = Vec3f(0, 1, 0);
+
+			int xTile = int(0.5f * hit.x + 1000); 
+			int zTile = int(0.5f * hit.z + 1000);
+			int checker_board_space = (xTile + zTile) % 2; 
+
+			if (checker_board_space == 1) {
+				material.diffuse_color = Vec3f(0.3, 0.3, 0.1);
+			}
+			else {
+				material.diffuse_color = Vec3f(0.1, 0.1, 0.4);
+			}
+		}
+	}
+
+	float vertical_wall_distance = std::numeric_limits<float>::max();
+	if (fabs(ray_direction.z) > 0) {
+		float distance_to_wall = -(origin.z + 20) / ray_direction.z; // set x plance to -15
+		Vec3f z_plane_hit = ray_direction * distance_to_wall + origin;
+
+		if (distance_to_wall > 0 && abs(z_plane_hit.x) < 10 && z_plane_hit.y > -10
+			&& z_plane_hit.y < 10 && distance_to_wall < sphere_distance) {
+
+			sphere_distance = distance_to_wall;
+			hit = z_plane_hit; 
+
+			normal = Vec3f(0, 0, 1);
+
+			int xTile = int(0.5f * hit.x + 1000);
+			int yTile = int(0.5f * hit.y + 1000);
+			int vertical_wall_space = (xTile + yTile) % 2; 
+
+			if (vertical_wall_space == 1) {
+				material.diffuse_color = Vec3f(0.3, 0.3, 0.2);
+			}
+			else {
+				material.diffuse_color = Vec3f(0.1, 0.1, 0.6);
+			}
+		}
+	}
+	return sphere_distance < 1000; // ensures that we hit something, evaluates to true if we did. 
 }
-	 
 /*
 Within the cast rays function it checks for intersections. where there is an intersection we use Color 1, if not, use color 2.
 */
 Vec3f reflection(Vec3f light_direction, Vec3f normal) {
-	Vec3f reflect = normal-light_direction*2.f * (light_direction * normal); //ensure to pass light_dir as a negative value
+	Vec3f reflect = normal - light_direction * 2.f * (light_direction * normal); //ensure to pass light_dir as a negative value
 	return reflect;
 }
 
@@ -114,81 +167,82 @@ Vec3f reflection(Vec3f light_direction, Vec3f normal) {
 Vec3f cast_rays(const Vec3f& origin, const Vec3f& ray_direction,
 	const std::vector<Sphere> spheres,
 	const std::vector<Light>& lights) {
-	
-	Vec3f Hit; 
+
+	Vec3f Hit;
 	Vec3f Point_Normal;
-	Object_Material material; 
+	Object_Material material;
 	float diffusion_light_intensity = 0;
-	float specular_light_intenstiy = 0; 
+	float specular_light_intenstiy = 0;
 
 	if (!Object_intersections(origin, ray_direction, spheres, Hit, Point_Normal, material)) {
 		return Vec3f(0.1, 0.1, 0.4);
 	}
+
 	for (size_t i = 0; i < lights.size(); i++) {
 		Vec3f Light_direction = (lights[i].position - Hit).normalize(); // direction of the light points towards hit object
 		//light_direction scaled to 1
+
 		float intensity = std::max(0.f, Light_direction * Point_Normal); //clamp to zero. Ensure no char wrap around. 
-		//light intensity determined by the size of angle made by the light hitting the object to it's normal point. 
+		//light intensity determined by the size of angle made by the light hitting the object to it's normal point.
+		
 		diffusion_light_intensity += lights[i].intensity * intensity; // Add to the diffusion instensity 
 		//refer to phong reflection model for speculat light intensity computation. 
 
-        Vec3f neg_light_dir = -Light_direction;
-        Vec3f reflection_dir = reflection(neg_light_dir, Point_Normal); // this is crazy, there needs to be a way to clean this up. 
-		Vec3f negative_reflection_dir = reflection_dir * -1; 
+		Vec3f neg_light_dir = -Light_direction;
+		Vec3f reflection_dir = reflection(neg_light_dir, Point_Normal); // this is crazy, there needs to be a way to clean this up. 
+		Vec3f negative_reflection_dir = reflection_dir * -1;
 
 		float reflection_clamped_zero = std::max(0.f, negative_reflection_dir * ray_direction);
-		specular_light_intenstiy += powf(reflection_clamped_zero,
-			material.shininess_exponent) * lights[i].intensity; 
+		specular_light_intenstiy += powf(reflection_clamped_zero, material.shininess_exponent) * lights[i].intensity;
 	}
-	return material.diffuse_color * diffusion_light_intensity * material.light_constants[0] + 
-		Vec3f(1., 1., 1.) * specular_light_intenstiy * material.light_constants[1]; 
+	return material.diffuse_color * diffusion_light_intensity * material.light_constants[0] +
+		Vec3f(1., 1., 1.) * specular_light_intenstiy * material.light_constants[1];
 	//Vec3f(1, 1, 1) just returns 255 when multiplied, the color is really bright, like almost white. 
 }
 
 
-	void render(const std::vector<Sphere>& spheres, const std::vector<Light>& lights) {
-		const int height = 1080; //my native screen and image resolution
-		const int width = 1920;
-		const int fov = 3.14159265358979323846 / 2.;
-		
-		std::vector<Vec3f> frameBuffer(width * height); // declare 1d framebuffer vector (holds RGB values respective to slots) 
+void render(const std::vector<Sphere>& spheres, const std::vector<Light>& lights) {
+	const int height = 1080; //my native screen and image resolution
+	const int width = 1920;
+	const int fov = 3.14159265358979323846 / 2.;
 
-		for (size_t j = 0; j < height; j++) {
-			for (size_t i = 0; i < width; i++) {
-				/*
-				*Variables x and y below build the ray_direction.
-				* For each pixel you build a ray_direction as such.
-				*/
-				
-				float x = ((2 * (i + 0.5) / (float)width) - 1)
-					* tan(fov / 2.)
-					* width / (float)height;
-				
-				float y = -(2 * (j + 0.5) / (float)height - 1) 
-					* tan(fov / 2.);
+	std::vector<Vec3f> frameBuffer(width * height); // declare 1d framebuffer vector (holds RGB values respective to slots) 
 
-				Vec3f dir = Vec3f(x, y, -1).normalize(); // .normalize()  Scales the vector to a lenth 1. 
-				// We scale to len. 1 because we are looking for the orientation of the vector only.
-				//The direction * distance is what gives us a ray used for computation within the ray_intersections function.
+	for (size_t j = 0; j < height; j++) {
+		for (size_t i = 0; i < width; i++) {
+			/*
+			*Variables x and y below build the ray_direction.
+			* For each pixel you build a ray_direction as such.
+			*/
+			float x = ((2 * (i + 0.5) / (float)width) - 1)
+				* tan(fov / 2.)
+				* width / (float)height;
 
-				frameBuffer[i + j * width] = cast_rays(Vec3f(0, 0, 0), dir, spheres, lights);
-			}
+			float y = -(2 * (j + 0.5) / (float)height - 1)
+				* tan(fov / 2.);
+
+			Vec3f dir = Vec3f(x, y, -1).normalize(); // .normalize()  Scales the vector to a lenth 1. 
+			// We scale to len. 1 because we are looking for the orientation of the vector only.
+			//The direction * distance is what gives us a ray used for computation within the ray_intersections function.
+
+			frameBuffer[i + j * width] = cast_rays(Vec3f(0, 0, 0), dir, spheres, lights);
 		}
-		std::ofstream outFrameBuffer("./ObjectsWithLight.ppm", std::ios::binary);
-		outFrameBuffer << "P6\n" // P6 format for binary RGB 
-			<< width << " " << height << "\n" << "255\n"; // Max color value
-
-		//write pixel data
-		for (size_t i = 0; i < width * height; ++i) {
-			Vec3f& c = frameBuffer[i];
-			float max = std::max(c[0], std::max(c[1], c[2]));
-			if (max > 1) c = c * (1. / max);
-			for (size_t j = 0; j < 3; j++) {
-				outFrameBuffer << (char)(255 * frameBuffer[i][j]); // Scale to 0-255 range
-			}
-		}
-		outFrameBuffer.close(); // Close the file after writing
 	}
+	std::ofstream outFrameBuffer("./3dSphereRender.ppm", std::ios::binary);
+	outFrameBuffer << "P6\n" // P6 format for binary RGB 
+		<< width << " " << height << "\n" << "255\n"; // Max color value
+
+	//write pixel data
+	for (size_t i = 0; i < width * height; ++i) {
+		Vec3f& c = frameBuffer[i];
+		float max = std::max(c[0], std::max(c[1], c[2]));
+		if (max > 1) c = c * (1. / max);
+		for (size_t j = 0; j < 3; j++) {
+			outFrameBuffer << (char)(255 * frameBuffer[i][j]); // Scale to 0-255 range
+		}
+	}
+	outFrameBuffer.close(); // Close the file after writing
+}
 
 int main() {
 	Object_Material ivory = Object_Material(Vec3f(0.2, 0.5, 0.7), 50, Vec2f(0.6, 0.3));
