@@ -26,7 +26,7 @@ struct Object_Material {
 	Vec3f diffuse_color;
 	float shininess_exponent;
 	Vec2f light_constants;
-
+	 
 	Object_Material() {
 		diffuse_color = Vec3f();
 		shininess_exponent = 1;
@@ -38,11 +38,10 @@ struct Object_Material {
 		shininess_exponent = e;
 		light_constants = constants;
 	}
-
+	
 };
 
 struct Sphere {
-
 	Vec3f center;
 	float radius;
 	Object_Material material;
@@ -50,6 +49,7 @@ struct Sphere {
 	Sphere(const Vec3f& c, const float& rad, const Object_Material& m) {
 		//Center is vec3f used to describe center of circle. 
 		//one scalar value to define the radius 
+		//material of the object
 		center = c;
 		radius = rad;
 		material = m;
@@ -100,7 +100,6 @@ bool Object_intersections(const Vec3f& origin, const Vec3f& ray_direction,
 		}
 	}
 
-	float checkerboard_dist = std::numeric_limits<float>::max();
 	if (fabs(ray_direction.y) > 0)//Ensure ray is projecting in front of the camera. i think... comeback to laters. 
 	{
 		float distance_to_plane = -(origin.y + 5) / ray_direction.y; //set y plance to -5. 
@@ -120,15 +119,14 @@ bool Object_intersections(const Vec3f& origin, const Vec3f& ray_direction,
 			int checker_board_space = (xTile + zTile) % 2; 
 
 			if (checker_board_space == 1) {
-				material.diffuse_color = Vec3f(0.3, 0.3, 0.1);
+				material.diffuse_color = Vec3f(0.6, 0.7, 0.1);
 			}
 			else {
-				material.diffuse_color = Vec3f(0.1, 0.1, 0.4);
+				material.diffuse_color = Vec3f(0.2, 0.2, 0.4);
 			}
 		}
 	}
 
-	float vertical_wall_distance = std::numeric_limits<float>::max();
 	if (fabs(ray_direction.z) > 0) {
 		float distance_to_wall = -(origin.z + 20) / ray_direction.z; // set x plance to -15
 		Vec3f z_plane_hit = ray_direction * distance_to_wall + origin;
@@ -146,10 +144,10 @@ bool Object_intersections(const Vec3f& origin, const Vec3f& ray_direction,
 			int vertical_wall_space = (xTile + yTile) % 2; 
 
 			if (vertical_wall_space == 1) {
-				material.diffuse_color = Vec3f(0.3, 0.3, 0.2);
+				material.diffuse_color = Vec3f(0.7, 0.7, 0.1);
 			}
 			else {
-				material.diffuse_color = Vec3f(0.1, 0.1, 0.6);
+				material.diffuse_color = Vec3f(0.2, 0.2, 0.4);
 			}
 		}
 	}
@@ -181,6 +179,14 @@ Vec3f cast_rays(const Vec3f& origin, const Vec3f& ray_direction,
 	for (size_t i = 0; i < lights.size(); i++) {
 		Vec3f Light_direction = (lights[i].position - Hit).normalize(); // direction of the light points towards hit object
 		//light_direction scaled to 1
+		float light_distance = (lights[i].position - Hit).norm();
+
+		Vec3f shadow_orig = Light_direction * Point_Normal < 0 ? Hit - Point_Normal * 1e-3 : Hit + Point_Normal * 1e-3; // checking if the point lies in the shadow of the lights[i]
+		Vec3f shadow_pt, shadow_N;
+		Object_Material tmpmaterial;
+		if (Object_intersections(shadow_orig, Light_direction, spheres, shadow_pt, shadow_N, tmpmaterial) && (shadow_pt - shadow_orig).norm() < light_distance)
+			continue;
+
 
 		float intensity = std::max(0.f, Light_direction * Point_Normal); //clamp to zero. Ensure no char wrap around. 
 		//light intensity determined by the size of angle made by the light hitting the object to it's normal point.
@@ -243,6 +249,7 @@ void render(const std::vector<Sphere>& spheres, const std::vector<Light>& lights
 	}
 	outFrameBuffer.close(); // Close the file after writing
 }
+
 
 int main() {
 	Object_Material ivory = Object_Material(Vec3f(0.2, 0.5, 0.7), 50, Vec2f(0.6, 0.3));
